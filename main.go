@@ -11,7 +11,8 @@ import (
 
 var (
 	//channel and concurrency to fix endless loop
-	queue = make(chan string)
+	queue       = make(chan string)
+	visitedLink = make(map[string]bool)
 )
 
 func isInDenyList(extension string) bool {
@@ -25,35 +26,42 @@ func isInDenyList(extension string) bool {
 }
 
 func crawl(href string) {
+	fmt.Println("\n", visitedLink)
+	visitedLink[href] = true
 	fmt.Printf("=======> %v \n", href)
 	// "https://github.com/gonzalober/about"
 	baseurl := href
-	resp, err := http.Get(baseurl)
+	resp, err := http.Get(baseurl) //get the html element
 	checkError(err)
 
-	body, err := ioutil.ReadAll(resp.Body) //readAll stores evth in the memory
+	body, err := ioutil.ReadAll(resp.Body) //readAll stores evthing in  memory
 	checkError(err)
 
 	r := regexp.MustCompile("href=\"([^\"]+)")
 
+	//extract anchor tags
 	result := r.FindAllStringSubmatch(string(body), -1)
 
 	for _, num := range result {
 		str := num[1]
 
-		fmt.Printf("----->>>> %v \n", str[len(str)-3:])
-		if isInDenyList(str[len(str)-3:]) {
-			continue
-		}
+		// if isInDenyList(str[len(str)-3:]) {
+		// 	continue
+		// }
 		// fmt.Println("----->>>> %v \n" + num[1])
 
-		properUrl := addHostToPath(num[1], href)
+		properUrl := addHostToPath(str, href)
+		//concurrency asyn to not exhaust all the resources
 		go func() { queue <- properUrl }()
 		// crawl(addHostToPath(num[1], href))
 	}
 
 	resp.Body.Close()
 
+}
+
+func printlf(result [][]string) {
+	panic("unimplemented")
 }
 
 func addHostToPath(path, baseUrl string) string {
@@ -89,10 +97,13 @@ func main() {
 	go func() {
 		queue <- arguments[0]
 	}()
-	fmt.Printf("--------%v", queue)
+	fmt.Printf("--------%v \n", queue)
 
 	for href := range queue {
-		crawl(href)
+		if !visitedLink[href] {
+			crawl(href)
+		}
+
 	}
 
 }
