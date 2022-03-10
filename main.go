@@ -60,10 +60,6 @@ func crawl(href string) {
 
 }
 
-func printlf(result [][]string) {
-	panic("unimplemented")
-}
-
 func addHostToPath(path, baseUrl string) string {
 	uri, err := url.Parse(path)
 	if err != nil {
