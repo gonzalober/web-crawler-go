@@ -7,13 +7,19 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 )
 
 var (
 	//channel and concurrency to fix endless loop
-	queue       = make(chan string)
+	queue       = make(chan Node)
 	visitedLink = make(map[string]bool)
 )
+
+type Node struct {
+	Depth int
+	Url   string
+}
 
 func isInDenyList(extension string) bool {
 	denyList := []string{"css", "svg", "xml", "png", "json"}
@@ -25,12 +31,14 @@ func isInDenyList(extension string) bool {
 	return false
 }
 
-func crawl(href string) {
-	fmt.Println("\n", visitedLink)
-	visitedLink[href] = true
-	fmt.Printf("=======> %v \n", href)
-	// "https://github.com/gonzalober/about"
-	baseurl := href
+func crawl(url string, depth int) {
+	fmt.Println(">>>", visitedLink, "---\n")
+
+	visitedLink[url] = true
+
+	fmt.Printf("=======> %v \n", url)
+
+	baseurl := url
 	resp, err := http.Get(baseurl) //get the html element
 	checkError(err)
 
@@ -50,9 +58,9 @@ func crawl(href string) {
 		// }
 		// fmt.Println("----->>>> %v \n" + num[1])
 
-		properUrl := addHostToPath(str, href)
+		node := Node{Url: addHostToPath(str, url), Depth: depth + 1}
 		//concurrency asyn to not exhaust all the resources
-		go func() { queue <- properUrl }()
+		go func() { queue <- node }()
 		// crawl(addHostToPath(num[1], href))
 	}
 
@@ -87,17 +95,26 @@ func main() {
 		fmt.Println("Missing URL input")
 		os.Exit(1)
 	}
-	// fmt.Println(arguments)
 
-	//concurrency asyn to not exhaust all the resources
+	limit, err := strconv.Atoi(arguments[1])
+	checkError(err)
+	n := Node{Url: arguments[0], Depth: 1}
+	//concurrency is async to not exhaust all the resources
 	go func() {
-		queue <- arguments[0]
+		queue <- n
 	}()
 	fmt.Printf("--------%v \n", queue)
 
-	for href := range queue {
-		if !visitedLink[href] {
-			crawl(href)
+	for node := range queue {
+
+		if node.Depth > limit {
+			fmt.Println("The depth limit has been reached")
+			os.Exit(0)
+		}
+
+		if !visitedLink[node.Url] {
+			fmt.Println("~~~~~~~VISITED", visitedLink)
+			crawl(node.Url, node.Depth)
 		}
 
 	}
