@@ -1,6 +1,6 @@
 // Package httpsyet provides the configuration and execution
 // for crawling a list of sites for links that can be updated to HTTPS.
-package httpsyet
+package main
 
 import (
 	"errors"
@@ -9,6 +9,8 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -360,5 +362,45 @@ func queueURLs(queue chan<- site, urls []*url.URL, parent *url.URL, depth int) {
 			Parent: parent,
 			Depth:  depth,
 		}
+	}
+}
+
+func main() {
+	arguments := os.Args[1:]
+
+	if len(arguments) == 0 {
+		fmt.Println("Missing URL input")
+		os.Exit(1)
+	}
+
+	limit, err := strconv.Atoi(arguments[1])
+	checkError(err)
+	n := Node{Url: arguments[0], Depth: 1}
+	//concurrency is async to not exhaust all the resources
+	go func() {
+		queue <- n
+	}()
+	fmt.Printf("--------%v \n", queue)
+
+	for node := range queue {
+
+		if node.Depth > limit {
+			fmt.Println("The depth limit has been reached")
+			os.Exit(0)
+		}
+
+		if !visitedLink[node.Url] {
+			fmt.Println("~~~~~~~VISITED", visitedLink)
+			Run(node.Url, node.Depth)
+		}
+
+	}
+
+}
+
+func checkError(err error) {
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }
