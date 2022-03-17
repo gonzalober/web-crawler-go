@@ -50,6 +50,8 @@ func crawl(url string, depth int) {
 	//extract anchor tags
 	result := r.FindAllStringSubmatch(string(body), -1)
 
+	fmt.Printf("\n ||||||||||||| \n", result, "\n |||||||||||||| \n")
+
 	for _, num := range result {
 		str := num[1]
 
